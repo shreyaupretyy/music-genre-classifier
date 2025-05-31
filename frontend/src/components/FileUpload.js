@@ -1,222 +1,150 @@
- 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
 
 const FileUpload = ({ onFileSelect, isAnalyzing, selectedFile }) => {
-  const [isDragOver, setIsDragOver] = useState(false);
-  const [uploadError, setUploadError] = useState(null);
-  const fileInputRef = useRef(null);
-
-  // Supported file types
-  const supportedTypes = [
-    'audio/mp3', 'audio/mpeg', 'audio/wav', 'audio/flac', 
-    'audio/m4a', 'audio/aac', 'audio/ogg'
-  ];
-
-  const validateFile = useCallback((file) => {
-    // Check file type
-    if (!supportedTypes.includes(file.type) && !file.name.match(/\.(mp3|wav|flac|m4a|aac|ogg)$/i)) {
-      return 'Please select a valid audio file (MP3, WAV, FLAC, M4A, AAC, OGG)';
-    }
-
-    // Check file size (15MB max)
-    if (file.size > 15 * 1024 * 1024) {
-      return 'File size must be less than 15MB';
-    }
-
-    return null;
-  }, []);
-
-  const handleFileSelection = useCallback((file) => {
-    const error = validateFile(file);
-    if (error) {
-      setUploadError(error);
-      return;
-    }
-
-    setUploadError(null);
-    onFileSelect(file);
-  }, [validateFile, onFileSelect]);
-
-  const handleDragOver = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(false);
-  }, []);
-
-  const handleDrop = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(false);
-    
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      handleFileSelection(files[0]);
-    }
-  }, [handleFileSelection]);
-
-  const handleFileInputChange = useCallback((e) => {
-    if (e.target.files.length > 0) {
-      handleFileSelection(e.target.files[0]);
-    }
-  }, [handleFileSelection]);
-
-  const handleBrowseClick = useCallback(() => {
-    if (!isAnalyzing) {
-      fileInputRef.current?.click();
-    }
-  }, [isAnalyzing]);
-
-  const clearFile = useCallback(() => {
-    setUploadError(null);
-    onFileSelect(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+  const onDrop = useCallback((acceptedFiles) => {
+    if (acceptedFiles.length > 0) {
+      const file = acceptedFiles[0];
+      console.log('File selected:', file.name, 'Size:', file.size, 'Type:', file.type);
+      onFileSelect(file);
     }
   }, [onFileSelect]);
 
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+  const { getRootProps, getInputProps, isDragActive, fileRejections } = useDropzone({
+    onDrop,
+    accept: {
+      'audio/mpeg': ['.mp3'],
+      'audio/wav': ['.wav'],
+      'audio/flac': ['.flac'],
+      'audio/mp4': ['.m4a'],
+      'audio/aac': ['.aac'],
+      'audio/ogg': ['.ogg']
+    },
+    maxFiles: 1,
+    maxSize: 50 * 1024 * 1024, // 50MB limit
+    disabled: isAnalyzing
+  });
+
+  // Handle file rejection errors
+  const fileRejectionItems = fileRejections.map(({ file, errors }) => (
+    <div key={file.path} className="text-red-600 text-sm mt-2">
+      <p className="font-medium">{file.path}:</p>
+      <ul className="list-disc list-inside ml-2">
+        {errors.map(e => (
+          <li key={e.code}>
+            {e.code === 'file-too-large' 
+              ? 'File is too large (max 50MB)' 
+              : e.code === 'file-invalid-type'
+              ? 'Invalid file type. Please use MP3, WAV, FLAC, M4A, AAC, or OGG files.'
+              : e.message}
+          </li>
+        ))}
+      </ul>
+    </div>
+  ));
 
   return (
-    <div className="bg-white border-2 border-slate-200 rounded-lg shadow-lg p-10 mb-16">
-      <div className="max-w-md mx-auto">
-        <div
-          className={`border-3 border-dashed rounded-lg p-16 text-center transition-all duration-300 cursor-pointer group ${
-            isDragOver
-              ? 'border-indigo-400 bg-indigo-50'
-              : isAnalyzing
-              ? 'border-slate-200 bg-slate-50 cursor-not-allowed'
-              : 'border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/50'
-          }`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          onClick={!isAnalyzing ? handleBrowseClick : undefined}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="audio/*"
-            onChange={handleFileInputChange}
-            className="hidden"
-            disabled={isAnalyzing}
-          />
-
-          <div className="flex flex-col items-center">
-            <div className={`w-20 h-20 border-2 rounded-lg flex items-center justify-center mb-6 transition-all ${
-              isDragOver
-                ? 'border-indigo-400 bg-indigo-100'
-                : isAnalyzing
-                ? 'border-slate-300 bg-slate-100'
-                : 'border-slate-300 bg-slate-100 group-hover:border-indigo-400 group-hover:bg-indigo-100'
-            }`}>
-              {isAnalyzing ? (
-                <div className="w-8 h-8 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
-              ) : selectedFile ? (
-                <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              ) : (
-                <svg className={`w-10 h-10 transition-colors ${
-                  isDragOver ? 'text-indigo-600' : 'text-slate-500 group-hover:text-indigo-600'
-                }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-              )}
-            </div>
-
-            {selectedFile ? (
-              <div className="text-center">
-                <h3 className="text-xl font-semibold text-slate-700 mb-2">
-                  {selectedFile.name}
-                </h3>
-                <p className="text-slate-500 mb-4">
-                  {formatFileSize(selectedFile.size)}
+    <div className="mb-16">
+      <div
+        {...getRootProps()}
+        className={`
+          border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-all
+          ${isDragActive 
+            ? 'border-indigo-500 bg-indigo-50' 
+            : selectedFile
+            ? 'border-green-500 bg-green-50'
+            : 'border-gray-300 bg-white hover:border-indigo-400 hover:bg-indigo-50'
+          }
+          ${isAnalyzing ? 'opacity-50 cursor-not-allowed' : ''}
+        `}
+      >
+        <input {...getInputProps()} />
+        
+        <div className="space-y-4">
+          {/* Icon */}
+          <div className="mx-auto w-16 h-16 flex items-center justify-center">
+            {isAnalyzing ? (
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200 border-t-indigo-600"></div>
+            ) : selectedFile ? (
+              <svg className="w-16 h-16 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+              </svg>
+            ) : (
+              <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+            )}
+          </div>
+          
+          {/* Text */}
+          <div>
+            {isAnalyzing ? (
+              <div>
+                <p className="text-xl font-bold text-indigo-600">Analyzing Audio...</p>
+                <p className="text-sm text-gray-600 mt-2">
+                  Our AI is extracting musical features and identifying the genre
                 </p>
-                {!isAnalyzing && (
-                  <div className="space-x-3">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleBrowseClick();
-                      }}
-                      className="text-indigo-600 hover:text-indigo-700 font-medium text-sm border-b border-indigo-200 hover:border-indigo-300 transition-colors"
-                    >
-                      Choose Different File
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        clearFile();
-                      }}
-                      className="text-red-600 hover:text-red-700 font-medium text-sm border-b border-red-200 hover:border-red-300 transition-colors ml-4"
-                    >
-                      Remove File
-                    </button>
-                  </div>
-                )}
+              </div>
+            ) : selectedFile ? (
+              <div>
+                <p className="text-xl font-bold text-green-600">File Selected</p>
+                <p className="text-lg text-gray-700 mt-2">{selectedFile.name}</p>
+                <p className="text-sm text-gray-500">
+                  Size: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                </p>
+                <p className="text-sm text-indigo-600 mt-2">Ready to analyze!</p>
+              </div>
+            ) : isDragActive ? (
+              <div>
+                <p className="text-xl font-bold text-indigo-600">Drop your audio file here!</p>
+                <p className="text-sm text-gray-600 mt-2">Release to upload</p>
               </div>
             ) : (
-              <div className="text-center">
-                <h3 className="text-xl font-semibold text-slate-700 mb-3">
-                  {isAnalyzing ? 'Processing audio...' : 'Select Audio File'}
-                </h3>
-                <p className="text-slate-500 mb-6 font-medium">
-                  {isAnalyzing ? 'Please wait while we analyze your file' : 'Drag and drop or click to browse'}
+              <div>
+                <p className="text-xl font-bold text-gray-700">Upload Audio File</p>
+                <p className="text-gray-600 mt-2">
+                  Drag & drop your audio file here, or click to browse
                 </p>
-                {!isAnalyzing && (
-                  <button className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors shadow-md">
-                    Browse Files
-                  </button>
-                )}
+                <p className="text-sm text-gray-500 mt-2">
+                  Supports MP3, WAV, FLAC, M4A, AAC, OGG (max 50MB)
+                </p>
               </div>
-            )}
-
-            {!isAnalyzing && (
-              <p className="text-xs text-slate-400 mt-4 font-medium">
-                Supports: MP3, WAV, FLAC, M4A, AAC, OGG • Maximum 15MB
-              </p>
             )}
           </div>
         </div>
-
-        {/* Error Message */}
-        {uploadError && (
-          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <div className="flex items-center space-x-2">
-              <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-red-700 text-sm font-medium">{uploadError}</p>
-            </div>
-          </div>
-        )}
-
-        {/* File Info */}
-        {selectedFile && !uploadError && (
-          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <div className="flex items-center space-x-2">
-              <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-green-700 text-sm font-medium">
-                File ready for analysis
-              </p>
-            </div>
-          </div>
-        )}
       </div>
+      
+      {/* File rejection errors */}
+      {fileRejectionItems.length > 0 && (
+        <div className="mt-4">
+          {fileRejectionItems}
+        </div>
+      )}
+      
+      {/* Selected file info */}
+      {selectedFile && !isAnalyzing && (
+        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+          <h3 className="font-semibold text-gray-900 mb-2">File Details:</h3>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-gray-600">Name:</span>
+              <p className="font-medium">{selectedFile.name}</p>
+            </div>
+            <div>
+              <span className="text-gray-600">Size:</span>
+              <p className="font-medium">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+            </div>
+            <div>
+              <span className="text-gray-600">Type:</span>
+              <p className="font-medium">{selectedFile.type || 'Unknown'}</p>
+            </div>
+            <div>
+              <span className="text-gray-600">Last Modified:</span>
+              <p className="font-medium">{new Date(selectedFile.lastModified).toLocaleDateString()}</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

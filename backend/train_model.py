@@ -207,12 +207,18 @@ def validate_epoch(model, dataloader, criterion, device):
 
 def train_model():
     """Train the genre classification model using PyTorch"""
+    print(f"Training will use device: {device}")
+    
     data_path = "data/genres"
     
     if not os.path.exists(data_path):
         print(f"Data directory '{data_path}' not found!")
         print("Please create the directory structure and add audio files.")
         return None, None, None
+    
+    # Create models directory if it doesn't exist
+    os.makedirs('models', exist_ok=True)
+    print("Models directory created/verified")
     
     features = []
     labels = []
@@ -326,15 +332,14 @@ def train_model():
                 'optimizer_state_dict': optimizer.state_dict(),
                 'val_acc': val_acc,
                 'scaler': scaler,
-                'label_encoder': le
+                'label_encoder': le,
+                'input_size': input_size,
+                'num_classes': num_classes
             }, 'models/best_model.pth')
         
         print(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
         print(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
         print(f"Learning Rate: {optimizer.param_groups[0]['lr']:.6f}")
-    
-    # Create models directory if it doesn't exist
-    os.makedirs('models', exist_ok=True)
     
     # Save final model
     torch.save({

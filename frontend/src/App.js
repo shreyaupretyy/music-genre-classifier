@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import FileUpload from './components/FileUpload';
 import GenreResults from './components/GenreResults';
 
@@ -7,6 +7,22 @@ function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
+  const [backendStatus, setBackendStatus] = useState(null);
+
+  // Check backend health on component mount
+  useEffect(() => {
+    checkBackendHealth();
+  }, []);
+
+  const checkBackendHealth = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/health');
+      const data = await response.json();
+      setBackendStatus(data);
+    } catch (err) {
+      setBackendStatus({ status: 'offline', error: 'Cannot connect to backend' });
+    }
+  };
 
   // Handler for file selection
   const handleFileSelect = (file) => {
@@ -27,21 +43,30 @@ function App() {
       const formData = new FormData();
       formData.append('audio', selectedFile);
 
+      console.log('Sending file for classification:', selectedFile.name);
+
       const response = await fetch('http://localhost:5000/api/classify', {
         method: 'POST',
         body: formData,
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Classification failed');
+        throw new Error(data.error || `Server error: ${response.status}`);
       }
 
-      const data = await response.json();
+      console.log('Classification results:', data);
       setResults(data.results);
+
+      // Show additional info if available
+      if (data.total_genres_detected > 3) {
+        console.log(`Total ${data.total_genres_detected} genres detected, showing top 3`);
+      }
+
     } catch (err) {
-      setError(err.message);
       console.error('Classification error:', err);
+      setError(err.message);
     } finally {
       setIsAnalyzing(false);
     }
@@ -50,62 +75,74 @@ function App() {
   return (
     <div className="min-h-screen bg-indigo-50 font-serif">
       {/* Header */}
-      <header className="bg-slate-50 border-b-2 border-indigo-200">
-        <div className="max-w-5xl mx-auto px-6 py-8">
+      <header className="bg-white shadow-sm border-b border-indigo-100">
+        <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-indigo-700 rounded-sm flex items-center justify-center rotate-3">
-                <div className="w-6 h-6 bg-indigo-100 rounded-full"></div>
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                </svg>
               </div>
-              <div>
-                <h1 className="text-3xl font-bold text-indigo-900 tracking-tight">
-                  AudioSort
-                </h1>
-                <p className="text-indigo-700 text-sm font-medium">
-                  Genre Classification Tool
-                </p>
-              </div>
+              <h1 className="text-2xl font-bold text-gray-900">AudioSort</h1>
             </div>
-            <nav className="hidden md:flex space-x-8">
-              <button className="text-indigo-800 hover:text-indigo-900 font-medium border-b-2 border-transparent hover:border-indigo-600 transition-all">
-                Classify
-              </button>
-              <button className="text-indigo-800 hover:text-indigo-900 font-medium border-b-2 border-transparent hover:border-indigo-600 transition-all">
-                Documentation
-              </button>
-              <button className="text-indigo-800 hover:text-indigo-900 font-medium border-b-2 border-transparent hover:border-indigo-600 transition-all">
-                Support
-              </button>
-            </nav>
+            
+            {/* Backend Status Indicator */}
+            <div className="flex items-center space-x-2">
+              <div className={`w-3 h-3 rounded-full ${
+                backendStatus?.status === 'healthy' && backendStatus?.model_loaded 
+                  ? 'bg-green-500' 
+                  : backendStatus?.status === 'healthy' 
+                  ? 'bg-yellow-500' 
+                  : 'bg-red-500'
+              }`}></div>
+              <span className="text-sm text-gray-600">
+                {backendStatus?.status === 'healthy' && backendStatus?.model_loaded 
+                  ? 'Model Ready' 
+                  : backendStatus?.status === 'healthy' 
+                  ? 'Model Not Loaded' 
+                  : 'Backend Offline'}
+              </span>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-16">
         {/* Hero Section */}
-        <div className="text-center mb-20">
-          <h2 className="text-5xl font-bold text-slate-800 mb-6 leading-tight tracking-tight">
-            Intelligent Music 
-            <span className="text-indigo-700"> Classification</span>
+        <div className="text-center mb-16">
+          <h2 className="text-5xl font-bold text-gray-900 mb-6">
+            Discover Your Music's Genre
           </h2>
-          <p className="text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed font-normal">
-            Upload your audio files and receive accurate genre predictions 
-            powered by advanced machine learning algorithms.
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
+            Upload any audio file and let our AI analyze its musical characteristics 
+            to identify the genre with precision and confidence.
           </p>
-          <div className="mt-8 flex justify-center">
-            <div className="w-24 h-1 bg-indigo-500 rounded-full"></div>
-          </div>
         </div>
 
-        {/* File Upload Component */}
+        {/* Backend Status Warning */}
+        {backendStatus && !backendStatus.model_loaded && (
+          <div className="mb-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <svg className="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              <p className="text-yellow-700 text-sm font-medium">
+                {backendStatus.status === 'offline' 
+                  ? 'Backend server is offline. Please start the backend server.'
+                  : 'AI model is not loaded. Please train the model first.'}
+              </p>
+            </div>
+          </div>
+        )}
+
         <FileUpload 
           onFileSelect={handleFileSelect}
           isAnalyzing={isAnalyzing}
           selectedFile={selectedFile}
         />
 
-        {/* Analyze Button */}
-        {selectedFile && !isAnalyzing && !results && (
+        {selectedFile && !isAnalyzing && !results && backendStatus?.model_loaded && (
           <div className="text-center mb-16">
             <button
               onClick={handleAnalysis}
@@ -128,87 +165,51 @@ function App() {
           </div>
         )}
 
-        {/* Results Component */}
         <GenreResults 
           results={results}
           isAnalyzing={isAnalyzing}
           selectedFile={selectedFile}
         />
 
-        {/* Features section */}
-        <div className="mt-20 grid md:grid-cols-2 gap-12">
-          <div className="bg-white border-2 border-slate-200 rounded-lg p-8 shadow-lg">
-            <div className="w-14 h-14 bg-indigo-100 border-2 border-indigo-300 rounded-lg flex items-center justify-center mb-6">
-              <svg className="w-7 h-7 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {/* Features Section */}
+        <div className="mt-32 grid md:grid-cols-3 gap-8">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-3">
-              Rapid Processing
-            </h3>
-            <p className="text-slate-600 leading-relaxed">
-              Advanced neural networks provide genre classification 
-              results in under 5 seconds for most audio files.
-            </p>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Lightning Fast</h3>
+            <p className="text-gray-600">Advanced AI processes your audio in seconds with high accuracy.</p>
           </div>
 
-          <div className="bg-white border-2 border-slate-200 rounded-lg p-8 shadow-lg">
-            <div className="w-14 h-14 bg-slate-100 border-2 border-slate-300 rounded-lg flex items-center justify-center mb-6">
-              <svg className="w-7 h-7 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <div className="text-center">
+            <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
               </svg>
             </div>
-            <h3 className="text-xl font-bold text-slate-800 mb-3">
-              Proven Accuracy
-            </h3>
-            <p className="text-slate-600 leading-relaxed">
-              Trained on diverse datasets with over 92% accuracy 
-              across major music genres and subgenres.
-            </p>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Multiple Formats</h3>
+            <p className="text-gray-600">Supports MP3, WAV, FLAC, and other popular audio formats.</p>
+          </div>
+
+          <div className="text-center">
+            <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Privacy First</h3>
+            <p className="text-gray-600">Your audio files are processed locally and never stored permanently.</p>
           </div>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="bg-slate-100 border-t-2 border-slate-200 mt-24 py-12">
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="grid md:grid-cols-3 gap-8 mb-8">
-            <div>
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-8 h-8 bg-indigo-700 rounded-sm rotate-3">
-                  <div className="w-full h-full bg-indigo-100 rounded-full m-1"></div>
-                </div>
-                <span className="font-bold text-slate-800 text-lg">AudioSort</span>
-              </div>
-              <p className="text-slate-600 text-sm leading-relaxed">
-                Professional music genre classification powered by machine learning.
-              </p>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold text-slate-800 mb-3">Resources</h4>
-              <ul className="space-y-2 text-sm text-slate-600">
-                <li><button className="hover:text-slate-800 transition-colors text-left">API Documentation</button></li>
-                <li><button className="hover:text-slate-800 transition-colors text-left">Supported Formats</button></li>
-                <li><button className="hover:text-slate-800 transition-colors text-left">Model Information</button></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold text-slate-800 mb-3">Support</h4>
-              <ul className="space-y-2 text-sm text-slate-600">
-                <li><button className="hover:text-slate-800 transition-colors text-left">Help Center</button></li>
-                <li><button className="hover:text-slate-800 transition-colors text-left">Contact Us</button></li>
-                <li><button className="hover:text-slate-800 transition-colors text-left">Privacy Policy</button></li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="border-t border-slate-300 pt-8 text-center">
-            <p className="text-slate-500 text-sm">
-              © 2025 AudioSort by <span className="font-medium text-slate-700">shreyaupretyy</span>. 
-              Built with care using React and Tailwind CSS.
-            </p>
+      <footer className="bg-white border-t border-gray-200 mt-32">
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="text-center text-gray-500">
+            <p>&copy; 2025 AudioSort. AI-powered music genre classification.</p>
           </div>
         </div>
       </footer>

@@ -1,4 +1,100 @@
+# Virtual environments
 venv/
+env/
+ENV/
+.venv/
+
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
 *.pyc
+*.pyo
+*.pyd
+.Python
+
+# Dataset and audio files (too large for Git)
 data/
+*.wav
+*.mp3
+*.flac
+*.m4a
+*.aac
+*.ogg
+*.zip
+
+# ML Models and artifacts (large files)
+models/
+models/*.pth
+models/*.pkl
+models/*.joblib
+models/training_history.png
+models/best_model.pth
+models/genre_classifier.pth
+models/scaler.pkl
+models/label_encoder.pkl
+
+# Keep the models directory but ignore contents
+!models/
+!models/.gitkeep
+
+# Temporary files
+*.tmp
+*.temp
+temp_files_to_cleanup.log
+uploads/
+*.wav.temp
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+*.ipynb
+
+# Environment variables
+.env
+.env.local
+.flaskenv
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+flask.log
+training.log
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+coverage.xml
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Kaggle credentials
+.kaggle/
+kaggle.json
+
+# Backup files
+*.bak
+*.backup
+
+# CUDA cache
+.nv/
