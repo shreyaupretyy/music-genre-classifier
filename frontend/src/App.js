@@ -6,31 +6,44 @@ function App() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState(null);
-
-  // Mock data for demo purposes
-  const mockResults = [
-    { genre: 'Jazz Fusion', confidence: 88, description: 'Complex harmonies with contemporary elements' },
-    { genre: 'Contemporary Jazz', confidence: 9, description: 'Modern jazz characteristics detected' },
-    { genre: 'Blues', confidence: 3, description: 'Blues influences present in chord progressions' }
-  ];
+  const [error, setError] = useState(null);
 
   // Handler for file selection
   const handleFileSelect = (file) => {
     setSelectedFile(file);
-    setResults(null); // Clear previous results
+    setResults(null);
+    setError(null);
   };
 
-  // Handler for starting analysis
-  const handleAnalysis = () => {
-    if (selectedFile) {
-      setIsAnalyzing(true);
-      setResults(null);
-      
-      // Simulate API call with mock data
-      setTimeout(() => {
-        setResults(mockResults);
-        setIsAnalyzing(false);
-      }, 3000);
+  // Handler for starting analysis with real API
+  const handleAnalysis = async () => {
+    if (!selectedFile) return;
+
+    setIsAnalyzing(true);
+    setResults(null);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('audio', selectedFile);
+
+      const response = await fetch('http://localhost:5000/api/classify', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Classification failed');
+      }
+
+      const data = await response.json();
+      setResults(data.results);
+    } catch (err) {
+      setError(err.message);
+      console.error('Classification error:', err);
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -100,6 +113,18 @@ function App() {
             >
               Analyze Genre
             </button>
+          </div>
+        )}
+
+        {/* Error display */}
+        {error && (
+          <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-red-700 text-sm font-medium">Error: {error}</p>
+            </div>
           </div>
         )}
 
