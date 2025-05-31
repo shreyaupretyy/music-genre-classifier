@@ -17,4 +17,4 @@ npm start
 ## Tech Stack
 - React.js
 - ML
-- CSS3
+- Tailwind CSS
